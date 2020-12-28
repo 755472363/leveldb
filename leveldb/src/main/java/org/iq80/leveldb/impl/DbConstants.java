@@ -17,8 +17,7 @@
  */
 package org.iq80.leveldb.impl;
 
-public final class DbConstants
-{
+public final class DbConstants {
     public static final int MAJOR_VERSION = 0;
     public static final int MINOR_VERSION = 1;
 
@@ -26,21 +25,25 @@ public final class DbConstants
 
     /**
      * Max number of levels
+     * 最大级别数
      */
     public static final int NUM_LEVELS = 7;
 
     /**
      * Level-0 compaction is started when we hit this many files.
+     * 当我们碰到这么多文件时，0级压缩就开始了。
      */
     public static final int L0_COMPACTION_TRIGGER = 4;
 
     /**
      * Soft limit on number of level-0 files.  We slow down writes at this point.
+     * 软限制0级文件的数量。我们放慢了写的速度。
      */
     public static final int L0_SLOWDOWN_WRITES_TRIGGER = 8;
 
     /**
      * Maximum number of level-0 files.  We stop writes at this point.
+     * level-0文件的最大数目。我们在这里停止写。
      */
     public static final int L0_STOP_WRITES_TRIGGER = 12;
 
@@ -51,10 +54,12 @@ public final class DbConstants
      * expensive manifest file operations.  We do not push all the way to
      * the largest level since that can generate a lot of wasted disk
      * space if the same key space is being repeatedly overwritten.
+     * 如果一个新的紧凑memtable没有产生重叠，那么它被压缩到最大水平。
+     * 我们尝试推到level 2，以避免相对昂贵的level 0=>1压缩，并避免一些昂贵的清单文件操作。
+     * 我们没有一直推到最大的级别，因为如果重复覆盖相同的键空间，这会产生大量浪费的磁盘空间。
      */
-    public static final int MAX_MEM_COMPACT_LEVEL = 2;
+    public static final int MAX_MEM_COMPACT_LEVEL = 2;// max_mem_compact_level
 
-    private DbConstants()
-    {
+    private DbConstants() {
     }
 }

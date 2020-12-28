@@ -29,93 +29,96 @@ import static org.iq80.leveldb.impl.DbConstants.NUM_LEVELS;
 import static org.iq80.leveldb.impl.VersionSet.MAX_GRAND_PARENT_OVERLAP_BYTES;
 
 // A Compaction encapsulates information about a compaction.
-public class Compaction
-{
-    private final Version inputVersion;
+//压缩封装:关于压缩的信息。
+public class Compaction {
+    //要compact的level
     private final int level;
+    //compact时当前的版本
+    private final Version inputVersion;
 
     // Each compaction reads inputs from "level" and "level+1"
-    private final List<FileMetaData> levelInputs;
+    private final List<FileMetaData> levelInputs;//每个压缩都从“level”和“level+1”读取输入
     private final List<FileMetaData> levelUpInputs;
-    private final List<FileMetaData> grandparents;
+    private final List<FileMetaData> grandparents;//父级level
+    //inputs[0]为 level - n 的sstable文件信息
+    //inputs[1]为 level - n + 1 的sstable文件信息
     private final List<FileMetaData>[] inputs;
 
+    //生成sstable的最大size(targe_file_size)
     private final long maxOutputFileSize;
+    //记录compact过程中的操作
     private final VersionEdit edit = new VersionEdit();
 
     // State used to check for number of of overlapping grandparent files
     // (parent == level_ + 1, grandparent == level_ + 2)
-
-    // Index in grandparent_starts_
-    private int grandparentIndex;
-
-    // Some output key has been seen
-    private boolean seenKey;
-
-    // Bytes of overlap between current output and grandparent files
-    private long overlappedBytes;
-
-    // State for implementing IsBaseLevelForKey
-
     // levelPointers holds indices into inputVersion -> levels: our state
     // is that we are positioned at one of the file ranges for each
     // higher level than the ones involved in this compaction (i.e. for
     // all L >= level_ + 2).
     private final int[] levelPointers = new int[NUM_LEVELS];
+    // Index in grandparent_starts_
+    //compact 时grandparent的索引
+    private int grandparentIndex;
+    // Some output key has been seen
+    private boolean seenKey;
 
-    public Compaction(Version inputVersion, int level, List<FileMetaData> levelInputs, List<FileMetaData> levelUpInputs, List<FileMetaData> grandparents)
-    {
+    // State for implementing IsBaseLevelForKey
+    // Bytes of overlap between current output and grandparent files
+    //当前输出文件和祖父文件之间重叠的字节数
+    private long overlappedBytes;
+
+    public Compaction(Version inputVersion, int level, List<FileMetaData> levelInputs, List<FileMetaData> levelUpInputs, List<FileMetaData> grandparents) {
         this.inputVersion = inputVersion;
         this.level = level;
         this.levelInputs = levelInputs;
         this.levelUpInputs = levelUpInputs;
         this.grandparents = ImmutableList.copyOf(requireNonNull(grandparents, "grandparents is null"));
         this.maxOutputFileSize = VersionSet.maxFileSizeForLevel(level);
-        this.inputs = new List[] {levelInputs, levelUpInputs};
+        this.inputs = new List[]{levelInputs, levelUpInputs};
     }
 
-    public int getLevel()
-    {
+    public static long totalFileSize(List<FileMetaData> files) {
+        long sum = 0;
+        for (FileMetaData file : files) {
+            sum += file.getFileSize();
+        }
+        return sum;
+    }
+
+    public int getLevel() {
         return level;
     }
 
-    public List<FileMetaData> getLevelInputs()
-    {
+    public List<FileMetaData> getLevelInputs() {
         return levelInputs;
     }
 
-    public List<FileMetaData> getLevelUpInputs()
-    {
+    public List<FileMetaData> getLevelUpInputs() {
         return levelUpInputs;
     }
 
-    public VersionEdit getEdit()
-    {
+    public VersionEdit getEdit() {
         return edit;
     }
 
     // Return the ith input file at "level()+which" ("which" must be 0 or 1).
-    public FileMetaData input(int which, int i)
-    {
+    public FileMetaData input(int which, int i) {
         checkArgument(which == 0 || which == 1, "which must be either 0 or 1");
         if (which == 0) {
             return levelInputs.get(i);
-        }
-        else {
+        } else {
             return levelUpInputs.get(i);
         }
     }
 
     // Maximum size of files to build during this compaction.
-    public long getMaxOutputFileSize()
-    {
+    public long getMaxOutputFileSize() {
         return maxOutputFileSize;
     }
 
     // Is this a trivial compaction that can be implemented by just
     // moving a single input file to the next level (no merging or splitting)
-    public boolean isTrivialMove()
-    {
+    public boolean isTrivialMove() {
         // Avoid a move if there is lots of overlapping grandparent data.
         // Otherwise, the move could create a parent file that will require
         // a very expensive merge later on.
@@ -125,18 +128,8 @@ public class Compaction
 
     }
 
-    public static long totalFileSize(List<FileMetaData> files)
-    {
-        long sum = 0;
-        for (FileMetaData file : files) {
-            sum += file.getFileSize();
-        }
-        return sum;
-    }
-
     // Add all inputs to this compaction as delete operations to *edit.
-    public void addInputDeletions(VersionEdit edit)
-    {
+    public void addInputDeletions(VersionEdit edit) {
         for (FileMetaData input : levelInputs) {
             edit.deleteFile(level, input.getNumber());
         }
@@ -148,8 +141,7 @@ public class Compaction
     // Returns true if the information we have available guarantees that
     // the compaction is producing data in "level+1" for which no data exists
     // in levels greater than "level+1".
-    public boolean isBaseLevelForKey(Slice userKey)
-    {
+    public boolean isBaseLevelForKey(Slice userKey) {
         // Maybe use binary search to find right entry instead of linear search?
         UserComparator userComparator = inputVersion.getInternalKeyComparator().getUserComparator();
         for (int level = this.level + 2; level < NUM_LEVELS; level++) {
@@ -172,8 +164,7 @@ public class Compaction
 
     // Returns true iff we should stop building the current output
     // before processing "internal_key".
-    public boolean shouldStopBefore(InternalKey internalKey)
-    {
+    public boolean shouldStopBefore(InternalKey internalKey) {
         // Scan to find earliest grandparent file that contains key.
         InternalKeyComparator internalKeyComparator = inputVersion.getInternalKeyComparator();
         while (grandparentIndex < grandparents.size() && internalKeyComparator.compare(internalKey, grandparents.get(grandparentIndex).getLargest()) > 0) {
@@ -188,14 +179,12 @@ public class Compaction
             // Too much overlap for current output; start new output
             overlappedBytes = 0;
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
 
-    public List<FileMetaData>[] getInputs()
-    {
+    public List<FileMetaData>[] getInputs() {
         return inputs;
     }
 }

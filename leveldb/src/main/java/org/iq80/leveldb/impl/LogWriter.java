@@ -22,8 +22,7 @@ import org.iq80.leveldb.util.Slice;
 import java.io.File;
 import java.io.IOException;
 
-public interface LogWriter
-{
+public interface LogWriter {
     boolean isClosed();
 
     void close()
@@ -37,6 +36,7 @@ public interface LogWriter
     long getFileNumber();
 
     // Writes a stream of chunks such that no chunk is split across a block boundary
+    //写入块流，这样就不会在块边界上分割块
     void addRecord(Slice record, boolean force)
             throws IOException;
 }

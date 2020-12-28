@@ -17,11 +17,7 @@
  */
 package org.iq80.leveldb.impl;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
+import com.google.common.cache.*;
 import org.iq80.leveldb.table.FileChannelTable;
 import org.iq80.leveldb.table.MMapTable;
 import org.iq80.leveldb.table.Table;
@@ -39,59 +35,48 @@ import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
 
-public class TableCache
-{
+public class TableCache {
     private final LoadingCache<Long, TableAndFile> cache;
     private final Finalizer<Table> finalizer = new Finalizer<>(1);
 
-    public TableCache(final File databaseDir, int tableCacheSize, final UserComparator userComparator, final boolean verifyChecksums)
-    {
+    public TableCache(final File databaseDir, int tableCacheSize, final UserComparator userComparator, final boolean verifyChecksums) {
         requireNonNull(databaseDir, "databaseName is null");
 
         cache = CacheBuilder.newBuilder()
                 .maximumSize(tableCacheSize)
-                .removalListener(new RemovalListener<Long, TableAndFile>()
-                {
+                .removalListener(new RemovalListener<Long, TableAndFile>() {
                     @Override
-                    public void onRemoval(RemovalNotification<Long, TableAndFile> notification)
-                    {
+                    public void onRemoval(RemovalNotification<Long, TableAndFile> notification) {
                         Table table = notification.getValue().getTable();
                         finalizer.addCleanup(table, table.closer());
                     }
                 })
-                .build(new CacheLoader<Long, TableAndFile>()
-                {
+                .build(new CacheLoader<Long, TableAndFile>() {
                     @Override
                     public TableAndFile load(Long fileNumber)
-                            throws IOException
-                    {
+                            throws IOException {
                         return new TableAndFile(databaseDir, fileNumber, userComparator, verifyChecksums);
                     }
                 });
     }
 
-    public InternalTableIterator newIterator(FileMetaData file)
-    {
+    public InternalTableIterator newIterator(FileMetaData file) {
         return newIterator(file.getNumber());
     }
 
-    public InternalTableIterator newIterator(long number)
-    {
+    public InternalTableIterator newIterator(long number) {
         return new InternalTableIterator(getTable(number).iterator());
     }
 
-    public long getApproximateOffsetOf(FileMetaData file, Slice key)
-    {
+    public long getApproximateOffsetOf(FileMetaData file, Slice key) {
         return getTable(file.getNumber()).getApproximateOffsetOf(key);
     }
 
-    private Table getTable(long number)
-    {
+    private Table getTable(long number) {
         Table table;
         try {
             table = cache.get(number).getTable();
-        }
-        catch (ExecutionException e) {
+        } catch (ExecutionException e) {
             Throwable cause = e;
             if (e.getCause() != null) {
                 cause = e.getCause();
@@ -101,24 +86,20 @@ public class TableCache
         return table;
     }
 
-    public void close()
-    {
+    public void close() {
         cache.invalidateAll();
         finalizer.destroy();
     }
 
-    public void evict(long number)
-    {
+    public void evict(long number) {
         cache.invalidate(number);
     }
 
-    private static final class TableAndFile
-    {
+    private static final class TableAndFile {
         private final Table table;
 
         private TableAndFile(File databaseDir, long fileNumber, UserComparator userComparator, boolean verifyChecksums)
-                throws IOException
-        {
+                throws IOException {
             String tableFileName = Filename.tableFileName(fileNumber);
             File tableFile = new File(databaseDir, tableFileName);
             FileInputStream fis = null;
@@ -129,19 +110,16 @@ public class TableCache
                     table = new MMapTable(tableFile.getAbsolutePath(), fileChannel, userComparator, verifyChecksums);
                     // We can close the channel and input stream as the mapping does not need them
                     Closeables.closeQuietly(fis);
-                }
-                else {
+                } else {
                     table = new FileChannelTable(tableFile.getAbsolutePath(), fileChannel, userComparator, verifyChecksums);
                 }
-            }
-            catch (IOException ioe) {
-              Closeables.closeQuietly(fis);
-              throw ioe;
+            } catch (IOException ioe) {
+                Closeables.closeQuietly(fis);
+                throw ioe;
             }
         }
 
-        public Table getTable()
-        {
+        public Table getTable() {
             return table;
         }
     }

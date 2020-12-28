@@ -28,44 +28,28 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
-public final class Filename
-{
-    private Filename()
-    {
-    }
-
-    public enum FileType
-    {
-        LOG,
-        DB_LOCK,
-        TABLE,
-        DESCRIPTOR,
-        CURRENT,
-        TEMP,
-        INFO_LOG  // Either the current one, or an old one
+public final class Filename {
+    private Filename() {
     }
 
     /**
      * Return the name of the log file with the specified number.
      */
-    public static String logFileName(long number)
-    {
+    public static String logFileName(long number) {
         return makeFileName(number, "log");
     }
 
     /**
      * Return the name of the sstable with the specified number.
      */
-    public static String tableFileName(long number)
-    {
+    public static String tableFileName(long number) {
         return makeFileName(number, "sst");
     }
 
     /**
      * Return the name of the descriptor file with the specified incarnation number.
      */
-    public static String descriptorFileName(long number)
-    {
+    public static String descriptorFileName(long number) {
         checkArgument(number >= 0, "number is negative");
         return String.format("MANIFEST-%06d", number);
     }
@@ -73,40 +57,35 @@ public final class Filename
     /**
      * Return the name of the current file.
      */
-    public static String currentFileName()
-    {
+    public static String currentFileName() {
         return "CURRENT";
     }
 
     /**
      * Return the name of the lock file.
      */
-    public static String lockFileName()
-    {
+    public static String lockFileName() {
         return "LOCK";
     }
 
     /**
      * Return the name of a temporary file with the specified number.
      */
-    public static String tempFileName(long number)
-    {
+    public static String tempFileName(long number) {
         return makeFileName(number, "dbtmp");
     }
 
     /**
      * Return the name of the info log file.
      */
-    public static String infoLogFileName()
-    {
+    public static String infoLogFileName() {
         return "LOG";
     }
 
     /**
      * Return the name of the old info log file.
      */
-    public static String oldInfoLogFileName()
-    {
+    public static String oldInfoLogFileName() {
         return "LOG.old";
     }
 
@@ -115,8 +94,7 @@ public final class Filename
      * The number encoded in the filename is stored in *number.  If the
      * filename was successfully parsed, returns true.  Else return false.
      */
-    public static FileInfo parseFileName(File file)
-    {
+    public static FileInfo parseFileName(File file) {
         // Owned filenames have the form:
         //    dbname/CURRENT
         //    dbname/LOCK
@@ -127,29 +105,22 @@ public final class Filename
         String fileName = file.getName();
         if ("CURRENT".equals(fileName)) {
             return new FileInfo(FileType.CURRENT);
-        }
-        else if ("LOCK".equals(fileName)) {
+        } else if ("LOCK".equals(fileName)) {
             return new FileInfo(FileType.DB_LOCK);
-        }
-        else if ("LOG".equals(fileName)) {
+        } else if ("LOG".equals(fileName)) {
             return new FileInfo(FileType.INFO_LOG);
-        }
-        else if ("LOG.old".equals(fileName)) {
+        } else if ("LOG.old".equals(fileName)) {
             return new FileInfo(FileType.INFO_LOG);
-        }
-        else if (fileName.startsWith("MANIFEST-")) {
+        } else if (fileName.startsWith("MANIFEST-")) {
             long fileNumber = Long.parseLong(removePrefix(fileName, "MANIFEST-"));
             return new FileInfo(FileType.DESCRIPTOR, fileNumber);
-        }
-        else if (fileName.endsWith(".log")) {
+        } else if (fileName.endsWith(".log")) {
             long fileNumber = Long.parseLong(removeSuffix(fileName, ".log"));
             return new FileInfo(FileType.LOG, fileNumber);
-        }
-        else if (fileName.endsWith(".sst")) {
+        } else if (fileName.endsWith(".sst")) {
             long fileNumber = Long.parseLong(removeSuffix(fileName, ".sst"));
             return new FileInfo(FileType.TABLE, fileNumber);
-        }
-        else if (fileName.endsWith(".dbtmp")) {
+        } else if (fileName.endsWith(".dbtmp")) {
             long fileNumber = Long.parseLong(removeSuffix(fileName, ".dbtmp"));
             return new FileInfo(FileType.TEMP, fileNumber);
         }
@@ -163,8 +134,7 @@ public final class Filename
      * @return true if successful; false otherwise
      */
     public static boolean setCurrentFile(File databaseDir, long descriptorNumber)
-            throws IOException
-    {
+            throws IOException {
         String manifest = descriptorFileName(descriptorNumber);
         String temp = tempFileName(descriptorNumber);
 
@@ -181,8 +151,7 @@ public final class Filename
     }
 
     private static void writeStringToFileSync(String str, File file)
-            throws IOException
-    {
+            throws IOException {
         try (FileOutputStream stream = new FileOutputStream(file)) {
             stream.write(str.getBytes(UTF_8));
             stream.flush();
@@ -190,8 +159,7 @@ public final class Filename
         }
     }
 
-    public static List<File> listFiles(File dir)
-    {
+    public static List<File> listFiles(File dir) {
         File[] files = dir.listFiles();
         if (files == null) {
             return ImmutableList.of();
@@ -199,53 +167,54 @@ public final class Filename
         return ImmutableList.copyOf(files);
     }
 
-    private static String makeFileName(long number, String suffix)
-    {
+    private static String makeFileName(long number, String suffix) {
         checkArgument(number >= 0, "number is negative");
         requireNonNull(suffix, "suffix is null");
         return String.format("%06d.%s", number, suffix);
     }
 
-    private static String removePrefix(String value, String prefix)
-    {
+    private static String removePrefix(String value, String prefix) {
         return value.substring(prefix.length());
     }
 
-    private static String removeSuffix(String value, String suffix)
-    {
+    private static String removeSuffix(String value, String suffix) {
         return value.substring(0, value.length() - suffix.length());
     }
 
-    public static class FileInfo
-    {
+    public enum FileType {
+        LOG,//log文件
+        DB_LOCK,//db_lock文件
+        TABLE,//table文件
+        DESCRIPTOR,//descriptor描述文件
+        CURRENT,//current文件
+        TEMP,//temp 临时文件
+        INFO_LOG  // Either the current one, or an old one 要么是现在的，要么是旧的
+    }
+
+    public static class FileInfo {
         private final FileType fileType;
         private final long fileNumber;
 
-        public FileInfo(FileType fileType)
-        {
+        public FileInfo(FileType fileType) {
             this(fileType, 0);
         }
 
-        public FileInfo(FileType fileType, long fileNumber)
-        {
+        public FileInfo(FileType fileType, long fileNumber) {
             requireNonNull(fileType, "fileType is null");
             this.fileType = fileType;
             this.fileNumber = fileNumber;
         }
 
-        public FileType getFileType()
-        {
+        public FileType getFileType() {
             return fileType;
         }
 
-        public long getFileNumber()
-        {
+        public long getFileNumber() {
             return fileNumber;
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -266,16 +235,14 @@ public final class Filename
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             int result = fileType.hashCode();
             result = 31 * result + (int) (fileNumber ^ (fileNumber >>> 32));
             return result;
         }
 
         @Override
-        public String toString()
-        {
+        public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("FileInfo");
             sb.append("{fileType=").append(fileType);

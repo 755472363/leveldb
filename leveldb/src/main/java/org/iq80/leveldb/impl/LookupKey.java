@@ -19,28 +19,33 @@ package org.iq80.leveldb.impl;
 
 import org.iq80.leveldb.util.Slice;
 
-public class LookupKey
-{
+/**
+ * db 内部在为查找 memtable/sstable 方便，包装使用的 key 结构，保存有 userkey 与
+ * SequnceNumber/ValueType dump 在内存的数据。
+ * LookupKey:
+ * start                           kstart                    end
+ * userkey_len(varint32)   userkey_data(userkey_len)    SequnceNumber/ValueType(uint64)
+ * <p>
+ * 对 memtable 进行 lookup 时使用 [start,end],
+ * 对 sstable lookup 时使用[kstart, end]
+ */
+public class LookupKey {
     private final InternalKey key;
 
-    public LookupKey(Slice userKey, long sequenceNumber)
-    {
+    public LookupKey(Slice userKey, long sequenceNumber) {
         key = new InternalKey(userKey, sequenceNumber, ValueType.VALUE);
     }
 
-    public InternalKey getInternalKey()
-    {
+    public InternalKey getInternalKey() {
         return key;
     }
 
-    public Slice getUserKey()
-    {
+    public Slice getUserKey() {
         return key.getUserKey();
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return key.toString();
     }
 }

@@ -18,24 +18,16 @@
 package org.iq80.leveldb.table;
 
 import org.iq80.leveldb.impl.SeekingIterator;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.SliceInput;
-import org.iq80.leveldb.util.SliceOutput;
-import org.iq80.leveldb.util.Slices;
-import org.iq80.leveldb.util.VariableLengthQuantity;
+import org.iq80.leveldb.util.*;
 
 import java.util.Comparator;
 import java.util.NoSuchElementException;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkPositionIndex;
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.*;
 import static java.util.Objects.requireNonNull;
 import static org.iq80.leveldb.util.SizeOf.SIZE_OF_INT;
 
-public class BlockIterator
-        implements SeekingIterator<Slice, Slice>
-{
+public class BlockIterator implements SeekingIterator<Slice, Slice> {
     private final SliceInput data;
     private final Slice restartPositions;
     private final int restartCount;
@@ -43,8 +35,7 @@ public class BlockIterator
 
     private BlockEntry nextEntry;
 
-    public BlockIterator(Slice data, Slice restartPositions, Comparator<Slice> comparator)
-    {
+    public BlockIterator(Slice data, Slice restartPositions, Comparator<Slice> comparator) {
         requireNonNull(data, "data is null");
         requireNonNull(restartPositions, "restartPositions is null");
         checkArgument(restartPositions.length() % SIZE_OF_INT == 0, "restartPositions.readableBytes() must be a multiple of %s", SIZE_OF_INT);
@@ -60,15 +51,45 @@ public class BlockIterator
         seekToFirst();
     }
 
+    /**
+     * Reads the entry at the current data readIndex.
+     * After this method, data readIndex is positioned at the beginning of the next entry
+     * or at the end of data if there was not a next entry.
+     *
+     * @return true if an entry was read
+     */
+    private static BlockEntry readEntry(SliceInput data, BlockEntry previousEntry) {
+        requireNonNull(data, "data is null");
+
+        // read entry header
+        int sharedKeyLength = VariableLengthQuantity.readVariableLengthInt(data);
+        int nonSharedKeyLength = VariableLengthQuantity.readVariableLengthInt(data);
+        int valueLength = VariableLengthQuantity.readVariableLengthInt(data);
+
+        // read key
+        final Slice key;
+        if (sharedKeyLength > 0) {
+            key = Slices.allocate(sharedKeyLength + nonSharedKeyLength);
+            SliceOutput sliceOutput = key.output();
+            checkState(previousEntry != null, "Entry has a shared key but no previous entry was provided");
+            sliceOutput.writeBytes(previousEntry.getKey(), 0, sharedKeyLength);
+            sliceOutput.writeBytes(data, nonSharedKeyLength);
+        } else {
+            key = data.readSlice(nonSharedKeyLength);
+        }
+        // read value
+        Slice value = data.readSlice(valueLength);
+
+        return new BlockEntry(key, value);
+    }
+
     @Override
-    public boolean hasNext()
-    {
+    public boolean hasNext() {
         return nextEntry != null;
     }
 
     @Override
-    public BlockEntry peek()
-    {
+    public BlockEntry peek() {
         if (!hasNext()) {
             throw new NoSuchElementException();
         }
@@ -76,8 +97,7 @@ public class BlockIterator
     }
 
     @Override
-    public BlockEntry next()
-    {
+    public BlockEntry next() {
         if (!hasNext()) {
             throw new NoSuchElementException();
         }
@@ -86,8 +106,7 @@ public class BlockIterator
 
         if (!data.isReadable()) {
             nextEntry = null;
-        }
-        else {
+        } else {
             // read entry at current data position
             nextEntry = readEntry(data, nextEntry);
         }
@@ -96,8 +115,7 @@ public class BlockIterator
     }
 
     @Override
-    public void remove()
-    {
+    public void remove() {
         throw new UnsupportedOperationException();
     }
 
@@ -105,8 +123,7 @@ public class BlockIterator
      * Repositions the iterator so the beginning of this block.
      */
     @Override
-    public void seekToFirst()
-    {
+    public void seekToFirst() {
         if (restartCount > 0) {
             seekToRestartPosition(0);
         }
@@ -116,8 +133,7 @@ public class BlockIterator
      * Repositions the iterator so the key of the next BlockElement returned greater than or equal to the specified targetKey.
      */
     @Override
-    public void seek(Slice targetKey)
-    {
+    public void seek(Slice targetKey) {
         if (restartCount == 0) {
             return;
         }
@@ -135,8 +151,7 @@ public class BlockIterator
                 // key at mid is smaller than targetKey.  Therefore all restart
                 // blocks before mid are uninteresting.
                 left = mid;
-            }
-            else {
+            } else {
                 // key at mid is greater than or equal to targetKey.  Therefore
                 // all restart blocks at or after mid are uninteresting.
                 right = mid - 1;
@@ -157,8 +172,7 @@ public class BlockIterator
      * <p/>
      * After this method, nextEntry will contain the next entry to return, and the previousEntry will be null.
      */
-    private void seekToRestartPosition(int restartPosition)
-    {
+    private void seekToRestartPosition(int restartPosition) {
         checkPositionIndex(restartPosition, restartCount, "restartPosition");
 
         // seek data readIndex to the beginning of the restart block
@@ -170,39 +184,5 @@ public class BlockIterator
 
         // read the entry
         nextEntry = readEntry(data, null);
-    }
-
-    /**
-     * Reads the entry at the current data readIndex.
-     * After this method, data readIndex is positioned at the beginning of the next entry
-     * or at the end of data if there was not a next entry.
-     *
-     * @return true if an entry was read
-     */
-    private static BlockEntry readEntry(SliceInput data, BlockEntry previousEntry)
-    {
-        requireNonNull(data, "data is null");
-
-        // read entry header
-        int sharedKeyLength = VariableLengthQuantity.readVariableLengthInt(data);
-        int nonSharedKeyLength = VariableLengthQuantity.readVariableLengthInt(data);
-        int valueLength = VariableLengthQuantity.readVariableLengthInt(data);
-
-        // read key
-        final Slice key;
-        if (sharedKeyLength > 0) {
-            key = Slices.allocate(sharedKeyLength + nonSharedKeyLength);
-            SliceOutput sliceOutput = key.output();
-            checkState(previousEntry != null, "Entry has a shared key but no previous entry was provided");
-            sliceOutput.writeBytes(previousEntry.getKey(), 0, sharedKeyLength);
-            sliceOutput.writeBytes(data, nonSharedKeyLength);
-        }
-        else {
-            key = data.readSlice(nonSharedKeyLength);
-        }
-        // read value
-        Slice value = data.readSlice(valueLength);
-
-        return new BlockEntry(key, value);
     }
 }

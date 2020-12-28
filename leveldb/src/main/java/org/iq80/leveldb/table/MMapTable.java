@@ -17,11 +17,7 @@
  */
 package org.iq80.leveldb.table;
 
-import org.iq80.leveldb.util.ByteBufferSupport;
-import org.iq80.leveldb.util.Closeables;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.Slices;
-import org.iq80.leveldb.util.Snappy;
+import org.iq80.leveldb.util.*;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -36,22 +32,25 @@ import java.util.concurrent.Callable;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.iq80.leveldb.CompressionType.SNAPPY;
 
-public class MMapTable
-        extends Table
-{
+public class MMapTable extends Table {
     private MappedByteBuffer data;
 
     public MMapTable(String name, FileChannel fileChannel, Comparator<Slice> comparator, boolean verifyChecksums)
-            throws IOException
-    {
+            throws IOException {
         super(name, fileChannel, comparator, verifyChecksums);
         checkArgument(fileChannel.size() <= Integer.MAX_VALUE, "File must be smaller than %s bytes", Integer.MAX_VALUE);
     }
 
+    public static ByteBuffer read(MappedByteBuffer data, int offset, int length)
+            throws IOException {
+        int newPosition = data.position() + offset;
+        ByteBuffer block = (ByteBuffer) data.duplicate().order(ByteOrder.LITTLE_ENDIAN).clear().limit(newPosition + length).position(newPosition);
+        return block;
+    }
+
     @Override
     protected Footer init()
-            throws IOException
-    {
+            throws IOException {
         long size = fileChannel.size();
         data = fileChannel.map(MapMode.READ_ONLY, 0, size);
         Slice footerSlice = Slices.copiedBuffer(data, (int) size - Footer.ENCODED_LENGTH, Footer.ENCODED_LENGTH);
@@ -59,38 +58,14 @@ public class MMapTable
     }
 
     @Override
-    public Callable<?> closer()
-    {
+    public Callable<?> closer() {
         return new Closer(name, fileChannel, data);
-    }
-
-    private static class Closer
-            implements Callable<Void>
-    {
-        private final String name;
-        private final Closeable closeable;
-        private final MappedByteBuffer data;
-
-        public Closer(String name, Closeable closeable, MappedByteBuffer data)
-        {
-            this.name = name;
-            this.closeable = closeable;
-            this.data = data;
-        }
-
-        public Void call()
-        {
-            ByteBufferSupport.unmap(data);
-            Closeables.closeQuietly(closeable);
-            return null;
-        }
     }
 
     @SuppressWarnings({"NonPrivateFieldAccessedInSynchronizedContext", "AssignmentToStaticFieldFromInstanceMethod"})
     @Override
     protected Block readBlock(BlockHandle blockHandle)
-            throws IOException
-    {
+            throws IOException {
         // read block trailer
         BlockTrailer blockTrailer = BlockTrailer.readBlockTrailer(Slices.copiedBuffer(this.data,
                 (int) blockHandle.getOffset() + blockHandle.getDataSize(),
@@ -121,19 +96,29 @@ public class MMapTable
                 Snappy.uncompress(uncompressedBuffer, uncompressedScratch);
                 uncompressedData = Slices.copiedBuffer(uncompressedScratch);
             }
-        }
-        else {
+        } else {
             uncompressedData = Slices.copiedBuffer(uncompressedBuffer);
         }
 
         return new Block(uncompressedData, comparator);
     }
 
-    public static ByteBuffer read(MappedByteBuffer data, int offset, int length)
-            throws IOException
-    {
-        int newPosition = data.position() + offset;
-        ByteBuffer block = (ByteBuffer) data.duplicate().order(ByteOrder.LITTLE_ENDIAN).clear().limit(newPosition + length).position(newPosition);
-        return block;
+    private static class Closer
+            implements Callable<Void> {
+        private final String name;
+        private final Closeable closeable;
+        private final MappedByteBuffer data;
+
+        public Closer(String name, Closeable closeable, MappedByteBuffer data) {
+            this.name = name;
+            this.closeable = closeable;
+            this.data = data;
+        }
+
+        public Void call() {
+            ByteBufferSupport.unmap(data);
+            Closeables.closeQuietly(closeable);
+            return null;
+        }
     }
 }

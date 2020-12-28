@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -17,9 +18,9 @@
     <url>http://github.com/dain/leveldb</url>
 
     <modules>
-        <module>leveldb-api</module>
-        <module>leveldb</module>
         <module>leveldb-benchmark</module>
+        <module>leveldb</module>
+        <module>leveldb-api</module>
     </modules>
 
     <inceptionYear>2011</inceptionYear>
@@ -51,8 +52,8 @@
         <connection>scm:git:git://github.com/dain/leveldb.git</connection>
         <developerConnection>scm:git:git@github.com:dain/leveldb.git</developerConnection>
         <url>http://github.com/dain/leveldb/tree/master</url>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
 
     <properties>
         <air.check.skip-spotbugs>true</air.check.skip-spotbugs>

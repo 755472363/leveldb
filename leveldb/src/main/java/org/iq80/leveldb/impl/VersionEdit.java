@@ -29,23 +29,25 @@ import org.iq80.leveldb.util.VariableLengthQuantity;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class VersionEdit
-{
+/**
+ * compact 过程中会有一系列改变当前 Version 的操作（FileNumber 增加，删除 input 的 sstable，增加
+ * 输出的 sstable……），为了缩小 Version 切换的时间点，将这些操作封装成 VersionEdit，compact
+ * 完成时，将 VersionEdit 中的操作一次应用到当前 Version 即可得到最新状态的 Version。
+ */
+public class VersionEdit {
+    private final Map<Integer, InternalKey> compactPointers = new TreeMap<>();
+    private final Multimap<Integer, FileMetaData> newFiles = ArrayListMultimap.create();
+    private final Multimap<Integer, Long> deletedFiles = ArrayListMultimap.create();
     private String comparatorName;
     private Long logNumber;
     private Long nextFileNumber;
     private Long previousLogNumber;
     private Long lastSequenceNumber;
-    private final Map<Integer, InternalKey> compactPointers = new TreeMap<>();
-    private final Multimap<Integer, FileMetaData> newFiles = ArrayListMultimap.create();
-    private final Multimap<Integer, Long> deletedFiles = ArrayListMultimap.create();
 
-    public VersionEdit()
-    {
+    public VersionEdit() {
     }
 
-    public VersionEdit(Slice slice)
-    {
+    public VersionEdit(Slice slice) {
         SliceInput sliceInput = slice.input();
         while (sliceInput.isReadable()) {
             int i = VariableLengthQuantity.readVariableLengthInt(sliceInput);
@@ -54,111 +56,94 @@ public class VersionEdit
         }
     }
 
-    public String getComparatorName()
-    {
+    public String getComparatorName() {
         return comparatorName;
     }
 
-    public void setComparatorName(String comparatorName)
-    {
+    public void setComparatorName(String comparatorName) {
         this.comparatorName = comparatorName;
     }
 
-    public Long getLogNumber()
-    {
+    public Long getLogNumber() {
         return logNumber;
     }
 
-    public void setLogNumber(long logNumber)
-    {
+    public void setLogNumber(long logNumber) {
         this.logNumber = logNumber;
     }
 
-    public Long getNextFileNumber()
-    {
+    public Long getNextFileNumber() {
         return nextFileNumber;
     }
 
-    public void setNextFileNumber(long nextFileNumber)
-    {
+    public void setNextFileNumber(long nextFileNumber) {
         this.nextFileNumber = nextFileNumber;
     }
 
-    public Long getPreviousLogNumber()
-    {
+    public Long getPreviousLogNumber() {
         return previousLogNumber;
     }
 
-    public void setPreviousLogNumber(long previousLogNumber)
-    {
+    public void setPreviousLogNumber(long previousLogNumber) {
         this.previousLogNumber = previousLogNumber;
     }
 
-    public Long getLastSequenceNumber()
-    {
+    public Long getLastSequenceNumber() {
         return lastSequenceNumber;
     }
 
-    public void setLastSequenceNumber(long lastSequenceNumber)
-    {
+    public void setLastSequenceNumber(long lastSequenceNumber) {
         this.lastSequenceNumber = lastSequenceNumber;
     }
 
-    public Map<Integer, InternalKey> getCompactPointers()
-    {
+    public Map<Integer, InternalKey> getCompactPointers() {
         return ImmutableMap.copyOf(compactPointers);
     }
 
-    public void setCompactPointer(int level, InternalKey key)
-    {
-        compactPointers.put(level, key);
-    }
-
-    public void setCompactPointers(Map<Integer, InternalKey> compactPointers)
-    {
+    public void setCompactPointers(Map<Integer, InternalKey> compactPointers) {
         this.compactPointers.putAll(compactPointers);
     }
 
-    public Multimap<Integer, FileMetaData> getNewFiles()
-    {
+    public void setCompactPointer(int level, InternalKey key) {
+        compactPointers.put(level, key);
+    }
+
+    public Multimap<Integer, FileMetaData> getNewFiles() {
         return ImmutableMultimap.copyOf(newFiles);
     }
 
     // Add the specified file at the specified level.
     // REQUIRES: This version has not been saved (see VersionSet::SaveTo)
     // REQUIRES: "smallest" and "largest" are smallest and largest keys in file
+    //在指定的级别添加指定的文件。
+    //要求:这个版本没有被保存(参见VersionSet::SaveTo)
+    //要求:“最小”和“最大”是文件中最小和最大的键
     public void addFile(int level, long fileNumber,
-            long fileSize,
-            InternalKey smallest,
-            InternalKey largest)
-    {
+                        long fileSize,
+                        InternalKey smallest,
+                        InternalKey largest) {
         FileMetaData fileMetaData = new FileMetaData(fileNumber, fileSize, smallest, largest);
         addFile(level, fileMetaData);
     }
 
-    public void addFile(int level, FileMetaData fileMetaData)
-    {
+    public void addFile(int level, FileMetaData fileMetaData) {
         newFiles.put(level, fileMetaData);
     }
 
-    public void addFiles(Multimap<Integer, FileMetaData> files)
-    {
+    public void addFiles(Multimap<Integer, FileMetaData> files) {
         newFiles.putAll(files);
     }
 
-    public Multimap<Integer, Long> getDeletedFiles()
-    {
+    public Multimap<Integer, Long> getDeletedFiles() {
         return ImmutableMultimap.copyOf(deletedFiles);
     }
 
     // Delete the specified "file" from the specified "level".
-    public void deleteFile(int level, long fileNumber)
-    {
+    public void deleteFile(int level, long fileNumber) {
         deletedFiles.put(level, fileNumber);
     }
 
-    public Slice encode()
-    {
+    public Slice encode() {
         DynamicSliceOutput dynamicSliceOutput = new DynamicSliceOutput(4096);
         for (VersionEditTag versionEditTag : VersionEditTag.values()) {
             versionEditTag.writeValue(dynamicSliceOutput, this);
@@ -167,8 +152,7 @@ public class VersionEdit
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("VersionEdit");
         sb.append("{comparatorName='").append(comparatorName).append('\'');

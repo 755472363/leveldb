@@ -28,19 +28,15 @@ import java.util.Comparator;
 
 import static org.iq80.leveldb.CompressionType.SNAPPY;
 
-public class FileChannelTable
-        extends Table
-{
+public class FileChannelTable extends Table {
     public FileChannelTable(String name, FileChannel fileChannel, Comparator<Slice> comparator, boolean verifyChecksums)
-            throws IOException
-    {
+            throws IOException {
         super(name, fileChannel, comparator, verifyChecksums);
     }
 
     @Override
     protected Footer init()
-            throws IOException
-    {
+            throws IOException {
         long size = fileChannel.size();
         ByteBuffer footerData = read(size - Footer.ENCODED_LENGTH, Footer.ENCODED_LENGTH);
         return Footer.readFooter(Slices.copiedBuffer(footerData));
@@ -49,8 +45,7 @@ public class FileChannelTable
     @SuppressWarnings({"AssignmentToStaticFieldFromInstanceMethod", "NonPrivateFieldAccessedInSynchronizedContext"})
     @Override
     protected Block readBlock(BlockHandle blockHandle)
-            throws IOException
-    {
+            throws IOException {
         // read block trailer
         ByteBuffer trailerData = read(blockHandle.getOffset() + blockHandle.getDataSize(), BlockTrailer.ENCODED_LENGTH);
         BlockTrailer blockTrailer = BlockTrailer.readBlockTrailer(Slices.copiedBuffer(trailerData));
@@ -81,8 +76,7 @@ public class FileChannelTable
                 Snappy.uncompress(uncompressedBuffer, uncompressedScratch);
                 uncompressedData = Slices.copiedBuffer(uncompressedScratch);
             }
-        }
-        else {
+        } else {
             uncompressedData = Slices.copiedBuffer(uncompressedBuffer);
         }
 
@@ -90,8 +84,7 @@ public class FileChannelTable
     }
 
     private ByteBuffer read(long offset, int length)
-            throws IOException
-    {
+            throws IOException {
         ByteBuffer uncompressedBuffer = ByteBuffer.allocate(length);
         fileChannel.read(uncompressedBuffer, offset);
         if (uncompressedBuffer.hasRemaining()) {

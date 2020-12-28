@@ -17,11 +17,7 @@
  */
 package org.iq80.leveldb.impl;
 
-import org.iq80.leveldb.CompressionType;
-import org.iq80.leveldb.DB;
-import org.iq80.leveldb.DBException;
-import org.iq80.leveldb.DBFactory;
-import org.iq80.leveldb.Options;
+import org.iq80.leveldb.*;
 import org.iq80.leveldb.util.FileUtils;
 import org.testng.annotations.Test;
 
@@ -38,20 +34,16 @@ import static org.testng.Assert.assertTrue;
  *
  * @author <a href="http://hiramchirino.com">Hiram Chirino</a>
  */
-public class ApiTest
-{
+public class ApiTest {
     private final File databaseDir = FileUtils.createTempDir("leveldb");
+    private final DBFactory factory = Iq80DBFactory.factory;
 
-    public void assertEquals(byte[] arg1, byte[] arg2)
-    {
+    public void assertEquals(byte[] arg1, byte[] arg2) {
         assertTrue(Arrays.equals(arg1, arg2), asString(arg1) + " != " + asString(arg2));
     }
 
-    private final DBFactory factory = Iq80DBFactory.factory;
-
     File getTestDirectory(String name)
-            throws IOException
-    {
+            throws IOException {
         File rc = new File(databaseDir, name);
         factory.destroy(rc, new Options().createIfMissing(true));
         rc.mkdirs();
@@ -60,8 +52,7 @@ public class ApiTest
 
     @Test
     public void testCompaction()
-            throws IOException, DBException
-    {
+            throws IOException, DBException {
         Options options = new Options().createIfMissing(true).compressionType(CompressionType.NONE);
 
         File path = getTestDirectory("testCompaction");

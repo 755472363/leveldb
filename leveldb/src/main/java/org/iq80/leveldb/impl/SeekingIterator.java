@@ -21,16 +21,16 @@ import com.google.common.collect.PeekingIterator;
 
 import java.util.Map.Entry;
 
-public interface SeekingIterator<K, V>
-        extends PeekingIterator<Entry<K, V>>
-{
+public interface SeekingIterator<K, V> extends PeekingIterator<Entry<K, V>> {
     /**
      * Repositions the iterator so the beginning of this block.
+     * 重新定位迭代器，使其位于块的开始位置。
      */
     void seekToFirst();
 
     /**
      * Repositions the iterator so the key of the next BlockElement returned greater than or equal to the specified targetKey.
+     * 重新定位迭代器，使下一个BlockElement返回的键值大于或等于指定的targetKey。
      */
     void seek(K targetKey);
 }
