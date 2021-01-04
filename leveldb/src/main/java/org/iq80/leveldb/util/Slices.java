@@ -55,7 +55,9 @@ public final class Slices {
     }
 
     public static void writeLengthPrefixedBytes(SliceOutput sliceOutput, Slice value) {
+        //varint32编码
         VariableLengthQuantity.writeVariableLengthInt(value.length(), sliceOutput);
+        //写实际数据
         sliceOutput.writeBytes(value);
     }
 

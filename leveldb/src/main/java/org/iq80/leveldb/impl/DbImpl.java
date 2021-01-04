@@ -605,6 +605,7 @@ public class DbImpl implements DB {
         return writeInternal((WriteBatchImpl) updates, options);
     }
 
+    //leveldb的写操作
     public Snapshot writeInternal(WriteBatchImpl updates, WriteOptions options)
             throws DBException {
         checkBackgroundException();
@@ -615,7 +616,9 @@ public class DbImpl implements DB {
                 makeRoomForWrite(false);
 
                 // Get sequence numbers for this change set 获取此更改集的序列号
+                //每次写入，序列号加1
                 long sequenceBegin = versions.getLastSequence() + 1;
+                //设置最新的序列号
                 sequenceEnd = sequenceBegin + updates.size() - 1;
 
                 // Reserve this sequence in the version set 在版本集中保留这个序列
@@ -629,7 +632,7 @@ public class DbImpl implements DB {
                     throw Throwables.propagate(e);
                 }
 
-                // Update memtable
+                // Update memtable  更新memtable
                 updates.forEach(new InsertIntoHandler(memTable, sequenceBegin));
             } else {
                 sequenceEnd = versions.getLastSequence();
@@ -737,6 +740,9 @@ public class DbImpl implements DB {
                 // individual write by 1ms to reduce latency variance.  Also,
                 // this delay hands over some CPU to the compaction thread in
                 // case it is sharing the same core as the writer.
+                //我们正在接近L0文件数量的硬性限制。
+                //当达到硬限制时，不要将一次写入延迟几秒钟，而是开始将每次写入延迟1毫秒，以减少延迟变化。
+                //同样，这种延迟也会把一些CPU交给压缩线程，以防它与写入线程共享同一个内核。
                 try {
                     mutex.unlock();
                     Thread.sleep(1);
@@ -1157,6 +1163,7 @@ public class DbImpl implements DB {
         return writeBatch;
     }
 
+    //日志写入
     private Slice writeWriteBatch(WriteBatchImpl updates, long sequenceBegin) {
         Slice record = Slices.allocate(SIZE_OF_LONG + SIZE_OF_INT + updates.getApproximateSize());
         final SliceOutput sliceOutput = record.output();
@@ -1258,8 +1265,7 @@ public class DbImpl implements DB {
         }
     }
 
-    private static class InsertIntoHandler
-            implements Handler {
+    private static class InsertIntoHandler implements Handler {
         private final MemTable memTable;
         private long sequence;
 

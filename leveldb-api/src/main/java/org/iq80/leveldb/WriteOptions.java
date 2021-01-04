@@ -17,8 +17,13 @@
  */
 package org.iq80.leveldb;
 
+/**
+ * 写选项
+ */
 public class WriteOptions {
+    //是否同步
     private boolean sync;
+    //是否快照
     private boolean snapshot;
 
     public boolean sync() {

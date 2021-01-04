@@ -87,6 +87,7 @@ public class BasicSliceOutput
         writeBytes(source, 0, source.length);
     }
 
+    //写实际数据
     @Override
     public void writeBytes(Slice source) {
         writeBytes(source, 0, source.length());

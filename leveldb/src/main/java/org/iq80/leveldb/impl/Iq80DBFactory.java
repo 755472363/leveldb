@@ -31,13 +31,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class Iq80DBFactory implements DBFactory {
     public static final int CPU_DATA_MODEL;
+
     // We only use MMAP on 64 bit systems since it's really easy to run out of
     // virtual address space on a 32 bit system when all the data is getting mapped
     // into memory.  If you really want to use MMAP anyways, use -Dleveldb.mmap=true
-    public static final boolean USE_MMAP = Boolean.parseBoolean(System.getProperty("leveldb.mmap", "" + (CPU_DATA_MODEL > 32)));
-    public static final String VERSION;
-    public static final Iq80DBFactory factory = new Iq80DBFactory();
-
     static {
         boolean is64bit;
         //System.out.println(System.getProperty("os.name"));
@@ -51,6 +48,11 @@ public class Iq80DBFactory implements DBFactory {
         }
         CPU_DATA_MODEL = is64bit ? 64 : 32;
     }
+
+    public static final boolean USE_MMAP = Boolean.parseBoolean(System.getProperty("leveldb.mmap", "" + (CPU_DATA_MODEL > 32)));
+    public static final String VERSION;
+    public static final Iq80DBFactory factory = new Iq80DBFactory();
+
 
     static {
         String v = "unknown";

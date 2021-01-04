@@ -26,7 +26,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.iq80.leveldb.util.SizeOf.SIZE_OF_LONG;
 
-//InternalKey：包含 userkey 和 sequnceNumber、ValueType
+/**
+ * MemTable中，跳表数据结构中的  key
+ * internalKey：包含 userkey 和 sequnceNumber、ValueType
+ */
 public class InternalKey {
     private final Slice userKey;
     private final long sequenceNumber;

@@ -41,6 +41,7 @@ public final class VariableLengthQuantity {
         return size;
     }
 
+    //varint32编码，写
     public static void writeVariableLengthInt(int value, SliceOutput sliceOutput) {
         int highBitMask = 0x80;
         if (value < (1 << 7) && value >= 0) {
