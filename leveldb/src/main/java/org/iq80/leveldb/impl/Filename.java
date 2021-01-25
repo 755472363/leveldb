@@ -34,6 +34,7 @@ public final class Filename {
 
     /**
      * Return the name of the log file with the specified number.
+     * 返回具有指定编号的日志文件的名称。
      */
     public static String logFileName(long number) {
         return makeFileName(number, "log");

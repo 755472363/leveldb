@@ -55,6 +55,7 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
     private final List<Level> levels;
 
     // move these mutable fields somewhere else
+    // 要合并到的level
     private int compactionLevel;
     //score 越大，表示该 level 越不均衡，需要更优先进行 compact。
     private double compactionScore;

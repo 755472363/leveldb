@@ -49,12 +49,13 @@ import static org.iq80.leveldb.impl.LogMonitors.throwExceptionMonitor;
 public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     //target_file_size ： 目标文件大小
     public static final int TARGET_FILE_SIZE = 2 * 1048576;
-    // Maximum bytes of overlaps in grandparent (i.e., level+2) before we
-    // stop building a single file in a level.level+1 compaction.
+    // Maximum bytes of overlaps in grandparent (i.e., level+2) before we stop building a single file in a level.level+1 compaction.
+    // 在我们停止在关卡中创建单个文件之前，祖父母(即关卡+2)中重叠的最大字节数。级+ 1压实。
     //max_grand_parent_overlap_bytes ：最大父级重叠字节数
     public static final long MAX_GRAND_PARENT_OVERLAP_BYTES = 10 * TARGET_FILE_SIZE;
     //l0_compaction_trigger：level0比较触发器
     private static final int L0_COMPACTION_TRIGGER = 4;
+    //下一个文件编号
     private final AtomicLong nextFileNumber = new AtomicLong(2);
     //
     private final Map<Version, Object> activeVersions = new MapMaker().weakKeys().makeMap();
@@ -459,9 +460,10 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         return setupOtherInputs(level, levelInputs);
     }
 
+    //选择压实
     public Compaction pickCompaction() {
-        // We prefer compactions triggered by too much data in a level over
-        // the compactions triggered by seeks.
+        // We prefer compactions triggered by too much data in a level over the compactions triggered by seeks.
+        // 我们更喜欢在一个层次中由太多数据触发的压实，而不是由seeking触发的压实。
         boolean sizeCompaction = (current.getCompactionScore() >= 1);
         boolean seekCompaction = (current.getFileToCompact() != null);
 
@@ -493,6 +495,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         }
 
         // Files in level 0 may overlap each other, so pick up all overlapping ones
+        // 级别0的文件可能会相互重叠，所以把所有重叠的文件都捡起来
         if (level == 0) {
             Entry<InternalKey, InternalKey> range = getRange(levelInputs);
             // Note that the next call will discard the file we placed in
@@ -629,9 +632,8 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     }
 
     /**
-     * A helper class so we can efficiently apply a whole sequence
-     * of edits to a particular state without creating intermediate
-     * Versions that contain full copies of the intermediate state.
+     * A helper class so we can efficiently apply a whole sequence of edits to a particular state without creating intermediate Versions that contain full copies of the intermediate state.
+     * 一个助手类，这样我们就可以有效地对特定状态应用整个编辑序列，而不必创建包含中间状态完整副本的中间版本。
      */
     private static class Builder {
         private final VersionSet versionSet;

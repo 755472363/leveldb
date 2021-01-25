@@ -28,8 +28,10 @@ import static java.util.Objects.requireNonNull;
 import static org.iq80.leveldb.impl.DbConstants.NUM_LEVELS;
 import static org.iq80.leveldb.impl.VersionSet.MAX_GRAND_PARENT_OVERLAP_BYTES;
 
-// A Compaction encapsulates information about a compaction.
-//压缩封装:关于压缩的信息。
+/**
+ * A Compaction encapsulates information about a compaction.
+ * 压缩封装:关于压缩的信息。
+ */
 public class Compaction {
     //要compact的level
     private final int level;
@@ -37,9 +39,10 @@ public class Compaction {
     private final Version inputVersion;
 
     // Each compaction reads inputs from "level" and "level+1"
-    private final List<FileMetaData> levelInputs;//每个压缩都从“level”和“level+1”读取输入
-    private final List<FileMetaData> levelUpInputs;
-    private final List<FileMetaData> grandparents;//父级level
+    //每个压缩都从“level”和“level+1”读取输入
+    private final List<FileMetaData> levelInputs;
+    private final List<FileMetaData> levelUpInputs;//父级level
+    private final List<FileMetaData> grandparents;//祖父级level
     //inputs[0]为 level - n 的sstable文件信息
     //inputs[1]为 level - n + 1 的sstable文件信息
     private final List<FileMetaData>[] inputs;
@@ -49,12 +52,10 @@ public class Compaction {
     //记录compact过程中的操作
     private final VersionEdit edit = new VersionEdit();
 
-    // State used to check for number of of overlapping grandparent files
-    // (parent == level_ + 1, grandparent == level_ + 2)
-    // levelPointers holds indices into inputVersion -> levels: our state
-    // is that we are positioned at one of the file ranges for each
-    // higher level than the ones involved in this compaction (i.e. for
-    // all L >= level_ + 2).
+    // State used to check for number of of overlapping grandparent files (parent == level_ + 1, grandparent == level_ + 2)
+    // levelPointers holds indices into inputVersion -> levels: our state is that we are positioned at one of the file ranges for each higher level than the ones involved in this compaction (i.e. for all L >= level_ + 2).
+    //检查祖父母文件重叠数的状态(parent == level_ + 1, grandparent == level_ + 2)
+    // levelpointer保存inputVersion ->级别的索引:我们的状态是，我们被定位在文件范围中的每一个比这个压缩所涉及的级别更高的文件范围(例如，所有的L >= level_ + 2)。
     private final int[] levelPointers = new int[NUM_LEVELS];
     // Index in grandparent_starts_
     //compact 时grandparent的索引
@@ -116,12 +117,13 @@ public class Compaction {
         return maxOutputFileSize;
     }
 
-    // Is this a trivial compaction that can be implemented by just
-    // moving a single input file to the next level (no merging or splitting)
+    // Is this a trivial compaction that can be implemented by just moving a single input file to the next level (no merging or splitting)
+    // 这是一个简单的压缩，可以通过将单个输入文件移动到下一个级别(不合并或拆分)来实现吗?
     public boolean isTrivialMove() {
         // Avoid a move if there is lots of overlapping grandparent data.
-        // Otherwise, the move could create a parent file that will require
-        // a very expensive merge later on.
+        // Otherwise, the move could create a parent file that will require a very expensive merge later on.
+        //如果有很多重叠的祖父母数据，避免移动。
+        //否则，move可能会创建一个父文件，它将在以后需要非常昂贵的合并。
         return (levelInputs.size() == 1 &&
                 levelUpInputs.isEmpty() &&
                 totalFileSize(grandparents) <= MAX_GRAND_PARENT_OVERLAP_BYTES);

@@ -33,11 +33,16 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 import static org.iq80.leveldb.impl.VersionSet.TARGET_FILE_SIZE;
 
+/**
+ * 通过这个builder的类，可以实现Version1+VersionEdit=Version2。由此来产生新的version。
+ * 生成 block 的过程封装成 BlockBuilder 处理。生出 sstable 的过程封装成 TableBuilder 处理。
+ */
 public class TableBuilder {
     /**
      * TABLE_MAGIC_NUMBER was picked by running
      * echo http://code.google.com/p/leveldb/ | sha1sum
      * and taking the leading 64 bits.
+     * table_magic_number
      */
     public static final long TABLE_MAGIC_NUMBER = 0xdb4775248b80fb57L;
 
@@ -55,13 +60,14 @@ public class TableBuilder {
     // Either Finish() or Abandon() has been called.
     private boolean closed;
 
-    // We do not emit the index entry for a block until we have seen the
-    // first key for the next data block.  This allows us to use shorter
-    // keys in the index block.  For example, consider a block boundary
-    // between the keys "the quick brown fox" and "the who".  We can use
-    // "the r" as the key for the index block entry since it is >= all
-    // entries in the first block and < all entries in subsequent
-    // blocks.
+    // We do not emit the index entry for a block until we have seen the first key for the next data block.
+    // This allows us to use shorter keys in the index block.
+    // For example, consider a block boundary between the keys "the quick brown fox" and "the who".
+    // We can use "the r" as the key for the index block entry since it is >= all entries in the first block and < all entries in subsequent blocks.
+    //在看到下一个数据块的第一个键之前，我们不会发出一个块的索引项。
+    //在索引块中使用更短的键。
+    //例如，考虑键“the quick brown fox”和“the who”之间的块边界。
+    //我们可以使用"the r"作为索引块项的键，因为它是>=第一个块中的所有项，<后续块中的所有项。
     private boolean pendingIndexEntry;
     private BlockHandle pendingHandle;  // Handle to add to index block
 

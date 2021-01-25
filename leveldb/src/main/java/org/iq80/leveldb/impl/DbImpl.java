@@ -67,6 +67,7 @@ public class DbImpl implements DB {
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition backgroundCondition = mutex.newCondition();
 
+    //等待output的文件列表名
     private final List<Long> pendingOutputs = new ArrayList<>(); // todo
     private final InternalKeyComparator internalKeyComparator;
     private final ExecutorService compactionExecutor;
@@ -242,6 +243,7 @@ public class DbImpl implements DB {
         return null;
     }
 
+    //删除过时的文件
     private void deleteObsoleteFiles() {
         checkState(mutex.isHeldByCurrentThread());
 
@@ -337,23 +339,28 @@ public class DbImpl implements DB {
 
     }
 
+    //1调度合并压缩
     private void maybeScheduleCompaction() {
+        //检测锁，是否被当前线程持有
         checkState(mutex.isHeldByCurrentThread());
 
         if (backgroundCompaction != null) {
             // Already scheduled
+            //已经开始调度
         } else if (shuttingDown.get()) {
             // DB is being shutdown; no more background compactions
+            //DB正在关闭;不再有后台压缩
         } else if (immutableMemTable == null &&
                 manualCompaction == null &&
                 !versions.needsCompaction()) {
-            // No work to be done
+            // No work to be done 没有工作要做
         } else {
             backgroundCompaction = compactionExecutor.submit(new Callable<Void>() {
                 @Override
                 public Void call()
                         throws Exception {
                     try {
+                        //2后台调用
                         backgroundCall();
                     } catch (DatabaseShutdownException ignored) {
                     } catch (Throwable e) {
@@ -372,6 +379,7 @@ public class DbImpl implements DB {
         }
     }
 
+    //2后台调用
     private void backgroundCall()
             throws IOException {
         mutex.lock();
@@ -382,6 +390,7 @@ public class DbImpl implements DB {
 
             try {
                 if (!shuttingDown.get()) {
+                    //3后台合并压缩
                     backgroundCompaction();
                 }
             } finally {
@@ -391,6 +400,7 @@ public class DbImpl implements DB {
             try {
                 // Previous compaction may have produced too many files in a level,
                 // so reschedule another compaction if needed.
+                //以前的压缩可能在一个级别中产生了太多的文件，如果需要，重新安排另一个压缩。
                 maybeScheduleCompaction();
             } finally {
                 try {
@@ -402,25 +412,30 @@ public class DbImpl implements DB {
         }
     }
 
+    //3后台合并压缩
     private void backgroundCompaction()
             throws IOException {
+        //检测锁，是否被当前线程持有
         checkState(mutex.isHeldByCurrentThread());
 
+        //4合并压缩immutableMemTable，immutableMemTable to level0
         compactMemTableInternal();
 
         Compaction compaction;
         if (manualCompaction != null) {
+            //手动触发合并不为空
             compaction = versions.compactRange(manualCompaction.level,
                     new InternalKey(manualCompaction.begin, MAX_SEQUENCE_NUMBER, VALUE),
                     new InternalKey(manualCompaction.end, 0, DELETION));
         } else {
+            //选择压实
             compaction = versions.pickCompaction();
         }
 
         if (compaction == null) {
             // no compaction
         } else if (manualCompaction == null && compaction.isTrivialMove()) {
-            // Move file to next level
+            // Move file to next level 移动文件到下一个级别
             checkState(compaction.getLevelInputs().size() == 1);
             FileMetaData fileMetaData = compaction.getLevelInputs().get(0);
             compaction.getEdit().deleteFile(compaction.getLevel(), fileMetaData.getNumber());
@@ -433,7 +448,7 @@ public class DbImpl implements DB {
             cleanupCompaction(compactionState);
         }
 
-        // manual compaction complete
+        // manual compaction complete 手动压实完成
         if (manualCompaction != null) {
             manualCompaction = null;
         }
@@ -756,19 +771,25 @@ public class DbImpl implements DB {
                 // Do not delay a single write more than once
                 allowDelay = false;
             } else if (!force && memTable.approximateMemoryUsage() <= options.writeBufferSize()) {
+                //memTable使用内存小于写入内存，跳出循环，直接走write流程了
+                //否则，memTable使用内存大于写入内存，继续下边逻辑
                 // There is room in current memtable
                 break;
             } else if (immutableMemTable != null) {
                 // We have filled up the current memtable, but the previous
                 // one is still being compacted, so we wait.
+                //我们已经填满了当前的memtable，但是前面的一个仍然被压缩，所以我们等待。
+                //等待唤醒呼叫
                 backgroundCondition.awaitUninterruptibly();
             } else if (versions.numberOfFilesInLevel(0) >= L0_STOP_WRITES_TRIGGER) {
                 // There are too many level-0 files.
 //                Log(options_.info_log, "waiting...\n");
+                //0级文件太多，等待唤醒呼叫
                 backgroundCondition.awaitUninterruptibly();
             } else {
                 // Attempt to switch to a new memtable and trigger compaction of old
-                //尝试切换到新的memtable,并触发旧的压缩
+                //尝试切换到新的memtable,并触发旧的压缩 // prevLogNumber 辅助 log 文件的 FileNumber，在 compact memtable 时，置为 0.
+                //检测状态，如果是0,表示正在compact memtable，正常走下边逻辑
                 checkState(versions.getPrevLogNumber() == 0);
 
                 // close the existing log
@@ -791,9 +812,10 @@ public class DbImpl implements DB {
                 immutableMemTable = memTable;
                 memTable = new MemTable(internalKeyComparator);
 
-                // Do not force another compaction there is space available
+                // Do not force another compaction there is space available 不要强制另一个压缩是否有可用的空间
                 force = false;
 
+                //1调度合并压缩
                 maybeScheduleCompaction();
             }
         }
@@ -809,6 +831,7 @@ public class DbImpl implements DB {
         }
     }
 
+    //4合并压缩immutableMemTable，immutableMemTable to level0
     private void compactMemTableInternal()
             throws IOException {
         checkState(mutex.isHeldByCurrentThread());
@@ -818,27 +841,31 @@ public class DbImpl implements DB {
 
         try {
             // Save the contents of the memtable as a new Table
+            // 将memtable的内容保存为一个新表
             VersionEdit edit = new VersionEdit();
             Version base = versions.getCurrent();
+            //5 immutableMemTable to level0
             writeLevel0Table(immutableMemTable, edit, base);
 
             if (shuttingDown.get()) {
                 throw new DatabaseShutdownException("Database shutdown during memtable compaction");
             }
 
-            // Replace immutable memtable with the generated Table
+            // Replace immutable memtable with the generated Table 用生成的表替换immutableMemtable
             edit.setPreviousLogNumber(0);
             edit.setLogNumber(log.getFileNumber());  // Earlier logs no longer needed
             versions.logAndApply(edit);
 
             immutableMemTable = null;
 
+            //删除过时的文件
             deleteObsoleteFiles();
         } finally {
             backgroundCondition.signalAll();
         }
     }
 
+    //5 immutableMemTable to level0
     private void writeLevel0Table(MemTable mem, VersionEdit edit, Version base)
             throws IOException {
         checkState(mutex.isHeldByCurrentThread());
@@ -849,19 +876,21 @@ public class DbImpl implements DB {
         }
 
         // write the memtable to a new sstable
+        // 将memtable写入一个新的sstable
         long fileNumber = versions.getNextFileNumber();
         pendingOutputs.add(fileNumber);
         mutex.unlock();
         FileMetaData meta;
         try {
+            //build一个.sst文件对应的实体
             meta = buildTable(mem, fileNumber);
         } finally {
             mutex.lock();
         }
         pendingOutputs.remove(fileNumber);
 
-        // Note that if file size is zero, the file has been deleted and
-        // should not be added to the manifest.
+        // Note that if file size is zero, the file has been deleted and should not be added to the manifest.
+        //请注意，如果文件大小为0，则该文件已被删除，不应该被添加到清单中。
         int level = 0;
         if (meta != null && meta.getFileSize() > 0) {
             Slice minUserKey = meta.getSmallest().getUserKey();
@@ -873,6 +902,7 @@ public class DbImpl implements DB {
         }
     }
 
+    // build一个.sst文件对应的实体
     private FileMetaData buildTable(SeekingIterable<InternalKey, Slice> data, long fileNumber)
             throws IOException {
         File file = new File(databaseDir, Filename.tableFileName(fileNumber));
@@ -908,7 +938,7 @@ public class DbImpl implements DB {
             }
             FileMetaData fileMetaData = new FileMetaData(fileNumber, file.length(), smallest, largest);
 
-            // verify table can be opened
+            // verify table can be opened  验证表可打开
             tableCache.newIterator(fileMetaData);
 
             pendingOutputs.remove(fileNumber);
@@ -1167,19 +1197,29 @@ public class DbImpl implements DB {
     private Slice writeWriteBatch(WriteBatchImpl updates, long sequenceBegin) {
         Slice record = Slices.allocate(SIZE_OF_LONG + SIZE_OF_INT + updates.getApproximateSize());
         final SliceOutput sliceOutput = record.output();
+        //Slice底层是一个data[],
+        // 写入的key，和value按如下进行编码写入到string：
+        // sequence 8byte, count 4byte,      type, key.size()的varint编码，key实际值，value.size()的varint编码，value实际值。。。。
+        //sequence 8byte
         sliceOutput.writeLong(sequenceBegin);
+        //count 4byte
         sliceOutput.writeInt(updates.size());
         updates.forEach(new Handler() {
             @Override
             public void put(Slice key, Slice value) {
+                //type
                 sliceOutput.writeByte(VALUE.getPersistentId());
+                //key.size()的varint编码，key实际值
                 writeLengthPrefixedBytes(sliceOutput, key);
+                //value.size()的varint编码，value实际值
                 writeLengthPrefixedBytes(sliceOutput, value);
             }
 
             @Override
             public void delete(Slice key) {
+                //type = DELETION ，则只有key
                 sliceOutput.writeByte(DELETION.getPersistentId());
+                //key.size()的varint编码，key实际值
                 writeLengthPrefixedBytes(sliceOutput, key);
             }
         });

@@ -20,17 +20,21 @@ package org.iq80.leveldb;
 public class Options {
     private boolean createIfMissing = true;
     private boolean errorIfExists;
+    //写缓存大小
     private int writeBufferSize = 4 << 20;
 
     private int maxOpenFiles = 1000;
 
     private int blockRestartInterval = 16;
     private int blockSize = 4 * 1024;
+    //压缩类型
     private CompressionType compressionType = CompressionType.SNAPPY;
     private boolean verifyChecksums = true;
     private boolean paranoidChecks;
+    //用户传过来的比较器
     private DBComparator comparator;
     private Logger logger;
+    //缓存大小
     private long cacheSize;
 
     static void checkArgNotNull(Object value, String name) {

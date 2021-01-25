@@ -28,8 +28,10 @@ import static org.iq80.leveldb.util.Slices.readLengthPrefixedBytes;
 import static org.iq80.leveldb.util.Slices.writeLengthPrefixedBytes;
 
 public enum VersionEditTag {
-    // 8 is no longer used. It was used for large value refs.
+    // 8 is no longer used. It was used for large value refs.8
+    // 已不再使用。它被用于大数值的参考。
 
+    //comparator
     COMPARATOR(1) {
         @Override
         public void readValue(SliceInput sliceInput, VersionEdit versionEdit) {
@@ -49,6 +51,7 @@ public enum VersionEditTag {
             }
         }
     },
+    //log_number
     LOG_NUMBER(2) {
         @Override
         public void readValue(SliceInput sliceInput, VersionEdit versionEdit) {
@@ -64,7 +67,7 @@ public enum VersionEditTag {
             }
         }
     },
-
+    //previous_log_number
     PREVIOUS_LOG_NUMBER(9) {
         @Override
         public void readValue(SliceInput sliceInput, VersionEdit versionEdit) {
@@ -82,6 +85,7 @@ public enum VersionEditTag {
         }
     },
 
+    //next_file_number
     NEXT_FILE_NUMBER(3) {
         @Override
         public void readValue(SliceInput sliceInput, VersionEdit versionEdit) {
@@ -98,6 +102,7 @@ public enum VersionEditTag {
         }
     },
 
+    //last_sequence
     LAST_SEQUENCE(4) {
         @Override
         public void readValue(SliceInput sliceInput, VersionEdit versionEdit) {
@@ -114,6 +119,7 @@ public enum VersionEditTag {
         }
     },
 
+    //compact_pointer
     COMPACT_POINTER(5) {
         @Override
         public void readValue(SliceInput sliceInput, VersionEdit versionEdit) {
@@ -140,6 +146,7 @@ public enum VersionEditTag {
         }
     },
 
+    //deleted_file
     DELETED_FILE(6) {
         @Override
         public void readValue(SliceInput sliceInput, VersionEdit versionEdit) {
@@ -166,6 +173,7 @@ public enum VersionEditTag {
         }
     },
 
+    //new_file
     NEW_FILE(7) {
         @Override
         public void readValue(SliceInput sliceInput, VersionEdit versionEdit) {

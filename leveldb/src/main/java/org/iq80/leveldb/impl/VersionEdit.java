@@ -36,7 +36,9 @@ import java.util.TreeMap;
  */
 public class VersionEdit {
     private final Map<Integer, InternalKey> compactPointers = new TreeMap<>();
+    //要新增的FileMetaData，键是level,  值是.sst文件实体
     private final Multimap<Integer, FileMetaData> newFiles = ArrayListMultimap.create();
+    //要删除的FileMetaData，键是level,  值是文件编号
     private final Multimap<Integer, Long> deletedFiles = ArrayListMultimap.create();
     private String comparatorName;
     private Long logNumber;

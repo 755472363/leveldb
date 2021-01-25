@@ -18,12 +18,13 @@
 package org.iq80.leveldb;
 
 /**
- *
+ * 压缩类型
  */
 public enum CompressionType {
+    // 0
     NONE(0x00),
+    // 1
     SNAPPY(0x01);
-
     private final int persistentId;
 
     CompressionType(int persistentId) {

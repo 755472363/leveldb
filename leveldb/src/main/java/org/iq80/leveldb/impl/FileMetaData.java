@@ -23,6 +23,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * level层级里有多个.sst文件，对应的一个.sst文件实体
  */
 public class FileMetaData {
+    /**
+     * number是文件的编号，全局递增，通过number就可以找到一个sst文件
+     */
     private final long number;
 
     /**
